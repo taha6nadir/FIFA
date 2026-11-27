@@ -14,6 +14,7 @@ export const leagueReducer = (state = { leagues: saved("leagues", initialLeagues
 };
 export const clubReducer = (state = { clubs: saved("clubs", initialClubs) }, action) => {
   switch (action.type) {
+    case "CLUBS_SET": return { ...state, clubs: action.payload };
     case "CLUB_ADD": return { ...state, clubs: [...state.clubs, action.payload] };
     case "CLUB_UPDATE": return { ...state, clubs: state.clubs.map(x => x.id === action.payload.id ? action.payload : x) };
     default: return state;

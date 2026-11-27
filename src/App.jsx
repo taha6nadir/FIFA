@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { fetchFootballData } from "./store/store";
 import Navbar from "./components/Navbar";
 import { Login, Register } from "./components/Auth";
 import Home, { About } from "./components/Home";
@@ -27,8 +28,13 @@ function Logout() {
 
 function AppContent() {
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  const dispatch = useDispatch();
   const pathname = window.location.pathname;
   const authPage = pathname === "/login" || pathname === "/register";
+
+  useEffect(() => {
+    if (isAuthenticated) dispatch(fetchFootballData());
+  }, [dispatch, isAuthenticated]);
 
   return (
     <>

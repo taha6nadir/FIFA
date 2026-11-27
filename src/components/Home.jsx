@@ -1,8 +1,6 @@
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { FiBarChart2, FiCalendar, FiChevronRight, FiShield, FiUsers } from "react-icons/fi";
-import { fetchLeagues } from "../store/store";
 import { Crest, StatCard } from "./ui";
 
 const club = (clubs, id) => clubs.find(item => item.id === Number(id));
@@ -12,9 +10,6 @@ export default function Home() {
   const clubs = useSelector(state => state.clubs.clubs);
   const players = useSelector(state => state.players.players);
   const matchs = useSelector(state => state.matchs.matchs);
-  const dispatch = useDispatch();
-
-  useEffect(() => { dispatch(fetchLeagues()); }, [dispatch]);
 
   const upcoming = matchs
     .filter(match => match.status === "À venir")

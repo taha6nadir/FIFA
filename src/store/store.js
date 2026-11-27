@@ -1,6 +1,9 @@
 import { combineReducers, createStore, applyMiddleware } from "redux";
 import { thunk } from "redux-thunk";
+import axios from "axios";
 import { authReducer, clubReducer, leagueReducer, matchReducer, playerReducer } from "./reducers";
+
+const FOOTBALL_API_URL = "https://worldcup26.ir";
 
 export const loggerMiddleware = ({ getState }) => next => action => {
   const publicActions = ["LOGIN_SUCCESS", "REGISTER_SUCCESS", "LOGOUT"];
@@ -14,26 +17,67 @@ export const loggerMiddleware = ({ getState }) => next => action => {
   return next(action);
 };
 
-export const fetchLeagues = () => async dispatch => {
+export const fetchFootballData = () => async dispatch => {
   try {
-    const response = await fetch("https://worldcup26.ir/get/soccer/leagues");
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length) {
-        const leagues = data.slice(0, 8).map((item, index) => ({
-          id: item.id || index + 1,
-          name: item.name || item.league || `Championnat ${index + 1}`,
-          country: item.country || "International",
-          season: item.season || "2026-27",
-          year: 2026,
-          statistics: { matchs: item.matches || 15, clubs: item.teams || 20 },
-          status: "active",
+    const { data } = await axios.get(`${FOOTBALL_API_URL}/get/soccer/leagues`, {
+      params: { available: true },
+    });
+    const apiLeagues = Array.isArray(data.leagues) ? data.leagues : [];
+
+    if (!apiLeagues.length) {
+      throw new Error("The football API returned no available leagues.");
+    }
+
+    const leagues = apiLeagues.map((league, index) => ({
+      id: Number(league.id) || index + 1,
+      name: league.name,
+      abbreviation: league.abbreviation || "",
+      country: league.country || "International",
+      season: league.season?.display_name || "2026-27",
+      year: Number(league.season?.year) || 2026,
+      statistics: {
+        matchs: league.coverage?.matches || 0,
+        clubs: league.coverage?.clubs || 0,
+      },
+      status: league.active ? "active" : "suspendu",
+      slug: league.slug,
+      logo: league.logo || "",
+    }));
+
+    dispatch({ type: "LEAGUES_SET", payload: leagues });
+
+    const leaguesWithClubs = apiLeagues.filter(league => league.slug && league.coverage?.clubs > 0);
+    const clubsByLeague = await Promise.all(leaguesWithClubs.map(async league => {
+      try {
+        const response = await axios.get(
+          `${FOOTBALL_API_URL}/get/soccer/${encodeURIComponent(league.slug)}/clubs`
+        );
+        if (!Array.isArray(response.data.clubs)) {
+          throw new Error(`The football API returned an invalid club list for ${league.slug}.`);
+        }
+
+        return response.data.clubs.map(club => ({
+          id: Number(club.id),
+          name: club.displayName || club.name,
+          abbreviation: club.abbreviation || "",
+          city: club.city || club.location || "",
+          country: club.country || league.country || "International",
+          leagueId: Number(league.id),
+          logo: club.logo || "",
+          color: club.color ? `#${club.color.replace(/^#/, "")}` : "#173f35",
         }));
-        dispatch({ type: "LEAGUES_SET", payload: leagues });
+      } catch (error) {
+        console.info(`Could not load clubs for ${league.name}.`, error);
+        return [];
       }
+    }));
+
+    const clubs = clubsByLeague.flat();
+    if (clubs.length) {
+      dispatch({ type: "CLUBS_SET", payload: clubs });
     }
   } catch (error) {
-    console.info("API indisponible — données locales utilisées.", error);
+    console.info("Football API unavailable — local data is being used.", error);
   }
 };
 
